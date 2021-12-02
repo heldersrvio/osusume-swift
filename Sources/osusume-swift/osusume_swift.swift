@@ -1,50 +1,63 @@
 import matrix_utils_swift
 import Darwin
 
-private func findLargestOffDiagonalElement(for matrix: Matrix) -> (MatrixIndex, Double) {
-    return matrix.enumerated().filter { (index, _) in
-        index.0 != index.1
-    }.reduce(((0, 1), matrix[0][1])) { previous, current in
-        let value = current.1
-        return value > previous.1 ? current : previous
+private func calculateEuclideanNorm(of vector: Matrix) -> Double {
+    let sum = vector.reduce(0) { previous, row in
+        previous + row.reduce(0) { previousValue, element in
+            previousValue + pow(element, 2)
+        }
     }
+    return sqrt(sum)
 }
 
-private func jacobiRotate(_ matrix: Matrix, withCosine cosine: Double, withSine sine: Double, withRowIndex rowIndex: Int, withColumnIndex columnIndex: Int) -> Matrix {
-    let rotationMatrix = Matrix.buildMatrix(from: Matrix.makeIdentity(ofSize: matrix.count).enumerated().map { pair in
-        let index = pair.0
-        return
-            index.0 == rowIndex ?
-                index.1 == rowIndex ?
-                    (index, cosine)
-                : index.1 == columnIndex ?
-                    (index, -sine)
-                : pair
-            : index.0 == columnIndex ?
-                index.1  == rowIndex ?
-                    (index, sine)
-                : index.1 == columnIndex ?
-                    (index, cosine)
-                : pair
-            : pair
-    })
-    return (rotationMatrix.transposed() * matrix) * rotationMatrix
-}
-
-public func getJacobiGetEigenvalues(for matrix: Matrix, withTolerance tolerance: Double = 2 * Double.ulpOfOne) throws -> [[Double]] {
-    var updatedMatrix = matrix
-    var max = findLargestOffDiagonalElement(for: matrix)
+private func getHouseholderTransformationMatrix(for vector: Matrix) -> Matrix {
+    let columnVector = vector.isColumn ? vector : vector.first!.map { [$0] }
+    let e1 = Matrix.buildMatrix(from: columnVector.enumerated().map { $0.0.0 == 0 ? ($0.0, 1.0) : ($0.0, 0.0) })
+    let u = columnVector - (columnVector.first!.first! < 0 ? -1 : 1) * calculateEuclideanNorm(of: columnVector) * e1
+    let v = (1 / (calculateEuclideanNorm(of: u))) * u
+    let transposedV = v.transposed()
     
-    while (max.1 > tolerance) {
-        let maxValue = max.1
-        let maxIndex = max.0
-        let phi = atan(
-            (2 * maxValue) / (matrix[maxIndex.0][maxIndex.0] - matrix[maxIndex.1][maxIndex.1])
-        ) / 2
-        let sine = sin(phi)
-        let cosine = cos(phi)
-        updatedMatrix = jacobiRotate(matrix, withCosine: cosine, withSine: sine, withRowIndex: maxIndex.0, withColumnIndex: maxIndex.1)
-        max = findLargestOffDiagonalElement(for: updatedMatrix)
+    return (
+        Matrix.makeIdentity(ofSize: columnVector.count) - 2 * v * transposedV
+    )
+}
+
+private func fill(_ matrix: Matrix, withSize size: Int) -> Matrix {
+    if matrix.isSquare && matrix.count == size {
+        return matrix
     }
-    return updatedMatrix
+    return Matrix.buildMatrix(from: Matrix.makeIdentity(ofSize: size).enumerated().map { indexValuePair in
+        indexValuePair.0.0 > (size - matrix.count - 1) && indexValuePair.0.1 > (size - matrix.first!.count - 1) ? (indexValuePair.0, matrix[indexValuePair.0.0 - (size - matrix.count)][indexValuePair.0.1 - (size - matrix.first!.count)]) : indexValuePair
+    })
+}
+
+private func transformColumn(_ columnIndex: Int, of matrix: Matrix) -> Matrix {
+    let column = matrix.enumerated().filter { $0.0.0 >= columnIndex && $0.0.1 == columnIndex }.map { [$0.1] }
+    if column.count <= 1 {
+        return matrix
+    }
+    return fill(getHouseholderTransformationMatrix(for: column), withSize: matrix.count) * matrix
+}
+
+private func transformRow(_ rowIndex: Int, of matrix: Matrix) -> Matrix {
+    let row = [matrix[rowIndex].enumerated().filter { $0.0 > rowIndex }.map { $0.1 }]
+    if row.first!.count <= 1 {
+        return matrix
+    }
+    return matrix * fill(getHouseholderTransformationMatrix(for: row), withSize: matrix.count)
+}
+
+private func reduceToBidiagonal(_ matrix: Matrix, fromSize size: Int) -> Matrix {
+    if size == 1 {
+        return matrix
+    }
+    let transformedMatrix = transformRow(matrix.count - size, of: transformColumn(matrix.count - size, of: matrix))
+    return reduceToBidiagonal(
+        transformedMatrix,
+        fromSize: size - 1
+    )
+}
+
+public func reduceToBidiagonal(_ matrix: Matrix) -> Matrix {
+    return reduceToBidiagonal(matrix, fromSize: matrix.count)
 }
