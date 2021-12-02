@@ -61,3 +61,53 @@ private func reduceToBidiagonal(_ matrix: Matrix, fromSize size: Int) -> Matrix 
 public func reduceToBidiagonal(_ matrix: Matrix) -> Matrix {
     return reduceToBidiagonal(matrix, fromSize: matrix.count)
 }
+
+private func QRDecompose(_ matrix: Matrix, fromSize size: Int) -> (Matrix, Matrix) {
+    if size == 1 {
+        return (Matrix.makeIdentity(ofSize: matrix.count), matrix)
+    }
+    let columnIndex = matrix.count - size
+    let column = matrix.enumerated().filter { $0.0.0 >= columnIndex && $0.0.1 == columnIndex }.map { [$0.1] }
+    if column.count <= 1 {
+        return (Matrix.makeIdentity(ofSize: matrix.count), matrix)
+    }
+    let Q = fill(getHouseholderTransformationMatrix(for: column), withSize: matrix.count)
+    let R = Q * matrix
+    let nextDecomposition = QRDecompose(R, fromSize: size - 1)
+    return (Q.transposed() * nextDecomposition.0, nextDecomposition.1)
+}
+
+public func QRDecompose(_ matrix: Matrix) -> (Matrix, Matrix) {
+    return QRDecompose(matrix, fromSize: matrix.count)
+}
+
+private func calculateGivensCoefficients(a: Double, b: Double, withPrecision precision: Double  = Double.ulpOfOne) -> (Double, Double) {
+    if abs(b) <= precision {
+        return (1.0, 0.0)
+    }
+    let r = sqrt(a * a + b * b)
+    return (a / r, b / r)
+}
+
+public func performLeftGivensRotation(on matrix: Matrix, withRotationMatrix rotationMatrix: Matrix, atRow1 row1: Int, atRow2 row2: Int) -> Matrix {
+    let matrixSection = Matrix.buildMatrix(from: matrix.enumerated().filter { $0.0.0 == row1 || $0.0.0 == row2 }.map { (($0.0.0 == row1 ? 0 : 1, $0.0.1), $0.1) })
+    let rotatedSection = rotationMatrix * matrixSection
+    return Matrix.buildMatrix(from: matrix.enumerated().map { $0.0.0 == row1 || $0.0.0 == row2 ? ($0.0, rotatedSection[$0.0.0 == row1 ? 0 : 1][$0.0.1]) : $0 })
+}
+
+public func performRightGivensRotation(on matrix: Matrix, withRotationMatrix rotationMatrix: Matrix, atColumn1 column1: Int, atColumn2 column2: Int) -> Matrix {
+    let matrixSection = Matrix.buildMatrix(from: matrix.enumerated().filter { $0.0.1 == column1 || $0.0.1 == column2 }.map { (($0.0.0, $0.0.1 == column1 ? 0 : 1), $0.1) })
+    let rotatedSection = matrixSection * rotationMatrix
+    return Matrix.buildMatrix(from: matrix.enumerated().map { $0.0.1 == column1 || $0.0.1 == column2 ? ($0.0, rotatedSection[$0.0.0][$0.0.1 == column1 ? 0 : 1]) : $0 })
+}
+
+//public func calculateSVD(for matrix: Matrix) {
+//    var bidiagonalMatrix = reduceToBidiagonal(matrix)
+//    print(bidiagonalMatrix)
+//    let tridiagonalMatrix = bidiagonalMatrix.transposed() * bidiagonalMatrix
+//    print(tridiagonalMatrix)
+//    let Q1 = QRDecompose(tridiagonalMatrix).0
+//    let R = QRDecompose(tridiagonalMatrix).1
+//    print(Q1 * R)
+//    print(bidiagonalMatrix * Q1)
+//}

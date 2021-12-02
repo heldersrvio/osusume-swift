@@ -21,5 +21,6 @@ final class osusume_swiftTests: XCTestCase {
         XCTAssertEqual(bidiagonalM[3][0], 0.0, accuracy: 0.0001)
         XCTAssertEqual(bidiagonalM[3][1], 0.0, accuracy: 0.0001)
         XCTAssertEqual(bidiagonalM[3][2], 0.0, accuracy: 0.0001)
+    
     }
 }
