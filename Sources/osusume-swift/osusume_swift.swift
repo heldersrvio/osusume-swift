@@ -68,7 +68,7 @@ private func reduceToBidiagonal(_ matrix: Matrix, fromSize size: MatrixSize) -> 
     return (reducedMatrix, nextColumnTransformationMatrix * columnTransformationMatrix, rowTransformationMatrix * nextRowTransformationMatrix)
 }
 
-public func reduceToBidiagonal(_ matrix: Matrix) -> (Matrix, Matrix, Matrix) {
+private func reduceToBidiagonal(_ matrix: Matrix) -> (Matrix, Matrix, Matrix) {
     return reduceToBidiagonal(matrix, fromSize: (matrix.count, matrix.first!.count))
 }
 
@@ -87,7 +87,7 @@ private func QRDecompose(_ matrix: Matrix, fromSize size: Int) -> (Matrix, Matri
     return (Q.transposed() * nextDecomposition.0, nextDecomposition.1)
 }
 
-public func QRDecompose(_ matrix: Matrix) -> (Matrix, Matrix) {
+private func QRDecompose(_ matrix: Matrix) -> (Matrix, Matrix) {
     return QRDecompose(matrix, fromSize: matrix.count)
 }
 
