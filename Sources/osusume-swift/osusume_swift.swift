@@ -166,13 +166,30 @@ private func QREigenDecompose(_ matrix: Matrix, withPrecision precision: Double 
     return (nextMatrix, nextGL * GL, Q * GR * nextGR)
 }
 
-public func calculateSVD(for matrix: Matrix) -> (Matrix, Matrix, Matrix) {
+private func truncate(_ matrix: Matrix, forSize size: MatrixSize) -> Matrix {
+    let (m, n) = size
+    return Matrix.buildMatrix(from: matrix.enumerated().filter { $0.0.0 < m && $0.0.1 < n })
+}
+
+public func calculateSVD(for matrix: Matrix, withNumberOfFactors numberOfFactors: Int?) -> (Matrix, Matrix, Matrix) {
     let (bidiagonalMatrix, QBidiagonalL, QBidiagonalR) = reduceToBidiagonal(matrix)
     let (B, L, R) = QREigenDecompose(bidiagonalMatrix, withPrecision: 0.00001)
 
-    return (
+    let (U, D, VT) = (
         QBidiagonalL.transposed() * L.transposed(),
         B,
         R.transposed() * QBidiagonalR.transposed()
     )
+    if let numberOfFactors = numberOfFactors {
+        return (
+            truncate(U, forSize: (U.count, numberOfFactors)),
+            truncate(D, forSize: (numberOfFactors, numberOfFactors)),
+            truncate(VT, forSize: (numberOfFactors, VT.first!.count))
+        )
+    }
+    return (U, D, VT)
+}
+
+public func calculateSVD(for matrix: Matrix) -> (Matrix, Matrix, Matrix) {
+    return calculateSVD(for: matrix, withNumberOfFactors: nil)
 }

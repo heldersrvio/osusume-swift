@@ -48,4 +48,23 @@ final class osusume_swiftTests: XCTestCase {
         XCTAssertEqual(S3[1][1], 1.29066168, accuracy: 0.0001)
         XCTAssertEqual(S3[2][2], 0.0, accuracy: 0.0001)
     }
+    
+    func testTruncation() throws {
+        let m = [
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ]
+        let k = 2
+        let (U, D, VT) = calculateSVD(for: m, withNumberOfFactors: k)
+        XCTAssertEqual(U.count, m.count)
+        XCTAssertEqual(U.first!.count, k)
+        XCTAssertEqual(D.count, k)
+        XCTAssertEqual(D.first!.count, k)
+        XCTAssertEqual(VT.count, k)
+        XCTAssertEqual(VT.first!.count, m.first!.count)
+        XCTAssertEqual(D[0][0], 25.4624074, accuracy: 0.0001)
+        XCTAssertEqual(D[1][1], 1.29066168, accuracy: 0.0001)
+    }
 }
