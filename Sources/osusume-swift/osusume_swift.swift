@@ -112,7 +112,7 @@ private func performLeftGivensRotation(on matrix: Matrix, atElement elementIndex
     let rotatedSection = rotationMatrix * matrixSection
     return (
         Matrix.buildMatrix(from: matrix.enumerated().map { $0.0.0 == row1 || $0.0.0 == row2 ? ($0.0, rotatedSection[$0.0.0 == row1 ? 0 : 1][$0.0.1]) : $0 }),
-        Matrix.buildMatrix(from: matrix.enumerated().map { ($0.0, ($0.0.0 == row1 && $0.0.1 == row1) || ($0.0.0 == row2 && $0.0.1 == row2) ? c : ($0.0.0 == row1 && $0.0.1 == row2) ? -s : ($0.0.0 == row2 && $0.0.1 == row1) ? s : ($0.0.0 == $0.0.1) ? 1 : 0)
+        Matrix.buildMatrix(from: Matrix.makeIdentity(ofSize: matrix.count).enumerated().map { ($0.0, ($0.0.0 == row1 && $0.0.1 == row1) || ($0.0.0 == row2 && $0.0.1 == row2) ? c : ($0.0.0 == row1 && $0.0.1 == row2) ? -s : ($0.0.0 == row2 && $0.0.1 == row1) ? s : ($0.0.0 == $0.0.1) ? 1 : 0)
         })
     )
 }
@@ -130,7 +130,7 @@ private func performRightGivensRotation(on matrix: Matrix, atElement elementInde
     let rotatedSection = matrixSection * rotationMatrix
     return (
         Matrix.buildMatrix(from: matrix.enumerated().map { $0.0.1 == column1 || $0.0.1 == column2 ? ($0.0, rotatedSection[$0.0.0][$0.0.1 == column1 ? 0 : 1]) : $0 }),
-        Matrix.buildMatrix(from: matrix.enumerated().map { ($0.0, ($0.0.0 == column1 && $0.0.1 == column1) || ($0.0.0 == column2 && $0.0.1 == column2) ? c : ($0.0.0 == column1 && $0.0.1 == column2) ? s : ($0.0.0 == column2 && $0.0.1 == column1) ? -s : ($0.0.0 == $0.0.1) ? 1 : 0)
+        Matrix.buildMatrix(from: Matrix.makeIdentity(ofSize: matrix.first!.count).enumerated().map { ($0.0, ($0.0.0 == column1 && $0.0.1 == column1) || ($0.0.0 == column2 && $0.0.1 == column2) ? c : ($0.0.0 == column1 && $0.0.1 == column2) ? s : ($0.0.0 == column2 && $0.0.1 == column1) ? -s : ($0.0.0 == $0.0.1) ? 1 : 0)
         })
     )
 }
@@ -138,7 +138,7 @@ private func performRightGivensRotation(on matrix: Matrix, atElement elementInde
 private func restoreBidiagonality(to matrix: Matrix, atIndex index: Int = 0) -> (Matrix, Matrix, Matrix) {
     let numberOfColumns = matrix.first!.count
     if numberOfColumns < 3 {
-        let identity = Matrix.makeIdentity(ofSize: matrix.count)
+        let identity = Matrix.makeIdentity(ofSize: numberOfColumns)
         let (finalMatrix, GL) = performLeftGivensRotation(on: matrix, atElement: (numberOfColumns - 1, numberOfColumns - 2))
         return (finalMatrix, GL, identity)
     }
