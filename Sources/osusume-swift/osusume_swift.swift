@@ -31,34 +31,37 @@ private func fill(_ matrix: Matrix, withSize size: Int) -> Matrix {
     })
 }
 
-private func transformColumn(_ columnIndex: Int, of matrix: Matrix) -> Matrix {
+private func transformColumn(_ columnIndex: Int, of matrix: Matrix) -> (Matrix, Matrix) {
     let column = matrix.enumerated().filter { $0.0.0 >= columnIndex && $0.0.1 == columnIndex }.map { [$0.1] }
     if column.count <= 1 {
-        return matrix
+        return (matrix, Matrix.makeIdentity(ofSize: matrix.count))
     }
-    return fill(getHouseholderTransformationMatrix(for: column), withSize: matrix.count) * matrix
+    let transformationMatrix = fill(getHouseholderTransformationMatrix(for: column), withSize: matrix.count)
+    return (transformationMatrix * matrix, transformationMatrix)
 }
 
-private func transformRow(_ rowIndex: Int, of matrix: Matrix) -> Matrix {
+private func transformRow(_ rowIndex: Int, of matrix: Matrix) -> (Matrix, Matrix) {
     let row = [matrix[rowIndex].enumerated().filter { $0.0 > rowIndex }.map { $0.1 }]
     if row.first!.count <= 1 {
-        return matrix
+        return (matrix, Matrix.makeIdentity(ofSize: matrix.count))
     }
-    return matrix * fill(getHouseholderTransformationMatrix(for: row), withSize: matrix.count)
+    let transformationMatrix = fill(getHouseholderTransformationMatrix(for: row), withSize: matrix.count)
+    return (matrix * transformationMatrix, transformationMatrix)
 }
 
-private func reduceToBidiagonal(_ matrix: Matrix, fromSize size: Int) -> Matrix {
+private func reduceToBidiagonal(_ matrix: Matrix, fromSize size: Int) -> (Matrix, Matrix, Matrix) {
     if size == 1 {
-        return matrix
+        let identity = Matrix.makeIdentity(ofSize: matrix.count)
+        return (matrix, identity, identity)
     }
-    let transformedMatrix = transformRow(matrix.count - size, of: transformColumn(matrix.count - size, of: matrix))
-    return reduceToBidiagonal(
-        transformedMatrix,
-        fromSize: size - 1
-    )
+    let (columnTransformedMatrix, columnTransformationMatrix) = transformColumn(matrix.count - size, of: matrix)
+    let (rowTransformedMatrix, rowTransformationMatrix) = transformRow(matrix.count - size, of: columnTransformedMatrix)
+
+    let (reducedMatrix, nextColumnTransformationMatrix, nextRowTransformationMatrix) = reduceToBidiagonal(rowTransformedMatrix, fromSize: size - 1)
+    return (reducedMatrix, nextColumnTransformationMatrix * columnTransformationMatrix, rowTransformationMatrix * nextRowTransformationMatrix)
 }
 
-public func reduceToBidiagonal(_ matrix: Matrix) -> Matrix {
+public func reduceToBidiagonal(_ matrix: Matrix) -> (Matrix, Matrix, Matrix) {
     return reduceToBidiagonal(matrix, fromSize: matrix.count)
 }
 
@@ -86,28 +89,83 @@ private func calculateGivensCoefficients(a: Double, b: Double, withPrecision pre
         return (1.0, 0.0)
     }
     let r = sqrt(a * a + b * b)
-    return (a / r, b / r)
+    return (a / r, -b / r)
 }
 
-public func performLeftGivensRotation(on matrix: Matrix, withRotationMatrix rotationMatrix: Matrix, atRow1 row1: Int, atRow2 row2: Int) -> Matrix {
+private func performLeftGivensRotation(on matrix: Matrix, atElement elementIndex: MatrixIndex) -> (Matrix, Matrix) {
+    let row1 = elementIndex.0 - 1
+    let row2 = elementIndex.0
+    let (c, s) = calculateGivensCoefficients(a: matrix[row1][elementIndex.1], b: matrix[row2][elementIndex.1])
+    let rotationMatrix = [
+        [c, -s],
+        [s, c],
+    ]
+    
     let matrixSection = Matrix.buildMatrix(from: matrix.enumerated().filter { $0.0.0 == row1 || $0.0.0 == row2 }.map { (($0.0.0 == row1 ? 0 : 1, $0.0.1), $0.1) })
     let rotatedSection = rotationMatrix * matrixSection
-    return Matrix.buildMatrix(from: matrix.enumerated().map { $0.0.0 == row1 || $0.0.0 == row2 ? ($0.0, rotatedSection[$0.0.0 == row1 ? 0 : 1][$0.0.1]) : $0 })
+    return (
+        Matrix.buildMatrix(from: matrix.enumerated().map { $0.0.0 == row1 || $0.0.0 == row2 ? ($0.0, rotatedSection[$0.0.0 == row1 ? 0 : 1][$0.0.1]) : $0 }),
+        Matrix.buildMatrix(from: matrix.enumerated().map { ($0.0, ($0.0.0 == row1 && $0.0.1 == row1) || ($0.0.0 == row2 && $0.0.1 == row2) ? c : ($0.0.0 == row1 && $0.0.1 == row2) ? -s : ($0.0.0 == row2 && $0.0.1 == row1) ? s : ($0.0.0 == $0.0.1) ? 1 : 0)
+        })
+    )
 }
 
-public func performRightGivensRotation(on matrix: Matrix, withRotationMatrix rotationMatrix: Matrix, atColumn1 column1: Int, atColumn2 column2: Int) -> Matrix {
+private func performRightGivensRotation(on matrix: Matrix, atElement elementIndex: MatrixIndex) -> (Matrix, Matrix) {
+    let column1 = elementIndex.1 - 1
+    let column2 = elementIndex.1
+    let (c, s) = calculateGivensCoefficients(a: matrix[elementIndex.0][column1], b: matrix[elementIndex.0][column2])
+    let rotationMatrix = [
+        [c, s],
+        [-s, c],
+    ]
+    
     let matrixSection = Matrix.buildMatrix(from: matrix.enumerated().filter { $0.0.1 == column1 || $0.0.1 == column2 }.map { (($0.0.0, $0.0.1 == column1 ? 0 : 1), $0.1) })
     let rotatedSection = matrixSection * rotationMatrix
-    return Matrix.buildMatrix(from: matrix.enumerated().map { $0.0.1 == column1 || $0.0.1 == column2 ? ($0.0, rotatedSection[$0.0.0][$0.0.1 == column1 ? 0 : 1]) : $0 })
+    return (
+        Matrix.buildMatrix(from: matrix.enumerated().map { $0.0.1 == column1 || $0.0.1 == column2 ? ($0.0, rotatedSection[$0.0.0][$0.0.1 == column1 ? 0 : 1]) : $0 }),
+        Matrix.buildMatrix(from: matrix.enumerated().map { ($0.0, ($0.0.0 == column1 && $0.0.1 == column1) || ($0.0.0 == column2 && $0.0.1 == column2) ? c : ($0.0.0 == column1 && $0.0.1 == column2) ? s : ($0.0.0 == column2 && $0.0.1 == column1) ? -s : ($0.0.0 == $0.0.1) ? 1 : 0)
+        })
+    )
 }
 
-//public func calculateSVD(for matrix: Matrix) {
-//    var bidiagonalMatrix = reduceToBidiagonal(matrix)
-//    print(bidiagonalMatrix)
-//    let tridiagonalMatrix = bidiagonalMatrix.transposed() * bidiagonalMatrix
-//    print(tridiagonalMatrix)
-//    let Q1 = QRDecompose(tridiagonalMatrix).0
-//    let R = QRDecompose(tridiagonalMatrix).1
-//    print(Q1 * R)
-//    print(bidiagonalMatrix * Q1)
-//}
+private func restoreBidiagonality(to matrix: Matrix, atIndex index: Int = 0) -> (Matrix, Matrix, Matrix) {
+    let numberOfColumns = matrix.first!.count
+    if numberOfColumns < 3 {
+        let identity = Matrix.makeIdentity(ofSize: matrix.count)
+        return (matrix, identity, identity)
+    }
+    let (bandLeftFixedMatrix, GL) = performLeftGivensRotation(on: matrix, atElement: (index + 1, index))
+    let (bandRightFixedMatrix, GR) = performRightGivensRotation(on: bandLeftFixedMatrix, atElement: (index, index + 2))
+    
+    if index == numberOfColumns - 3 {
+        let (finalMatrix, GL2) = performLeftGivensRotation(on: bandRightFixedMatrix, atElement: (numberOfColumns - 1, numberOfColumns - 2))
+        return (finalMatrix, GL2 * GL, GR)
+    }
+    let (restoredMatrix, nextGL, nextGR) = restoreBidiagonality(to: bandRightFixedMatrix, atIndex: index + 1)
+    return (restoredMatrix, nextGL * GL, GR * nextGR)
+}
+
+private func QREigenDecompose(_ matrix: Matrix, withPrecision precision: Double = Double.ulpOfOne) -> (Matrix, Matrix, Matrix) {
+    let tridiagonalMatrix = matrix.transposed() * matrix
+    let (Q, _) = QRDecompose(tridiagonalMatrix)
+    let (bidiagonalMatrix, GL, GR) = restoreBidiagonality(to: matrix * Q)
+
+    if bidiagonalMatrix.enumerated().allSatisfy({ $0.0.0 == $0.0.1 || abs($0.1) <= precision }) {
+        
+        return (bidiagonalMatrix, GL, Q * GR)
+    }
+    let (nextMatrix, nextGL, nextGR) = QREigenDecompose(bidiagonalMatrix, withPrecision: precision)
+    
+    return (nextMatrix, nextGL * GL, Q * GR * nextGR)
+}
+
+public func calculateSVD(for matrix: Matrix) -> (Matrix, Matrix, Matrix) {
+    let (bidiagonalMatrix, QBidiagonalL, QBidiagonalR) = reduceToBidiagonal(matrix)
+    let (B, L, R) = QREigenDecompose(bidiagonalMatrix, withPrecision: 0.3)
+
+    return (
+        QBidiagonalL.transposed() * L.transposed(),
+        B,
+        R.transposed() * QBidiagonalR.transposed()
+    )
+}
