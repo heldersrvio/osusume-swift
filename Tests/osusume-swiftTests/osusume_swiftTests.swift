@@ -6,10 +6,8 @@ final class osusume_swiftTests: XCTestCase {
     func testSVDProduct() throws {
         
         let m = [
-            [12.0, -51.0, 4, 10.0],
-            [6, 167, -68, 15.6],
-            [-4, 24, -41, 9.9],
-            [10.3, 2.5, -0.55, 14.4]
+            [1.0, -2.0],
+            [4.0, 8.0],
         ]
     
         let (U, D, VT) = calculateSVD(for: m)
@@ -17,19 +15,27 @@ final class osusume_swiftTests: XCTestCase {
         
         XCTAssertEqual(product[0][0], m[0][0], accuracy: 0.0001)
         XCTAssertEqual(product[0][1], m[0][1], accuracy: 0.0001)
-        XCTAssertEqual(product[0][2], m[0][2], accuracy: 0.0001)
-        XCTAssertEqual(product[0][3], m[0][3], accuracy: 0.0001)
         XCTAssertEqual(product[1][0], m[1][0], accuracy: 0.0001)
         XCTAssertEqual(product[1][1], m[1][1], accuracy: 0.0001)
-        XCTAssertEqual(product[1][2], m[1][2], accuracy: 0.0001)
-        XCTAssertEqual(product[1][3], m[1][3], accuracy: 0.0001)
-        XCTAssertEqual(product[2][0], m[2][0], accuracy: 0.0001)
-        XCTAssertEqual(product[2][1], m[2][1], accuracy: 0.0001)
-        XCTAssertEqual(product[2][2], m[2][2], accuracy: 0.0001)
-        XCTAssertEqual(product[2][3], m[2][3], accuracy: 0.0001)
-        XCTAssertEqual(product[3][0], m[3][0], accuracy: 0.0001)
-        XCTAssertEqual(product[3][1], m[3][1], accuracy: 0.0001)
-        XCTAssertEqual(product[3][2], m[3][2], accuracy: 0.0001)
-        XCTAssertEqual(product[3][3], m[3][3], accuracy: 0.0001)
+    }
+    
+    func testSVDValues() throws {
+        let m1 = [
+            [1.0, -2.0],
+            [4.0, 8.0],
+        ]
+        let m2 = [
+            [40.0, -2.5, 20.0],
+            [-3.67, 0.4, 13.0],
+            [29.0, 104.0, 2.4]
+        ]
+        let S1 = calculateSVD(for: m1).1
+        let S2 = calculateSVD(for: m2).1
+        
+        XCTAssertEqual(S1[0][0], 9.04838186, accuracy: 0.0001)
+        XCTAssertEqual(S1[1][1], 1.768272, accuracy: 0.0001)
+        XCTAssertEqual(S2[0][0], 108.42043755, accuracy: 0.0001)
+        XCTAssertEqual(S2[1][1], 43.83671985, accuracy: 0.0001)
+        XCTAssertEqual(S2[2][2], 13.22836398, accuracy: 0.0001)
     }
 }

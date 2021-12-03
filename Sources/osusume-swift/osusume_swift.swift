@@ -12,6 +12,10 @@ private func calculateEuclideanNorm(of vector: Matrix) -> Double {
 
 private func getHouseholderTransformationMatrix(for vector: Matrix) -> Matrix {
     let columnVector = vector.isColumn ? vector : vector.first!.map { [$0] }
+    if columnVector.enumerated().allSatisfy({ $0.0.0 == 0 || abs($0.1) <= Double.ulpOfOne }) {
+        return Matrix.makeIdentity(ofSize: columnVector.count)
+    }
+    
     let e1 = Matrix.buildMatrix(from: columnVector.enumerated().map { $0.0.0 == 0 ? ($0.0, 1.0) : ($0.0, 0.0) })
     let u = columnVector - (columnVector.first!.first! < 0 ? -1 : 1) * calculateEuclideanNorm(of: columnVector) * e1
     let v = (1 / (calculateEuclideanNorm(of: u))) * u
@@ -132,7 +136,8 @@ private func restoreBidiagonality(to matrix: Matrix, atIndex index: Int = 0) -> 
     let numberOfColumns = matrix.first!.count
     if numberOfColumns < 3 {
         let identity = Matrix.makeIdentity(ofSize: matrix.count)
-        return (matrix, identity, identity)
+        let (finalMatrix, GL) = performLeftGivensRotation(on: matrix, atElement: (numberOfColumns - 1, numberOfColumns - 2))
+        return (finalMatrix, GL, identity)
     }
     let (bandLeftFixedMatrix, GL) = performLeftGivensRotation(on: matrix, atElement: (index + 1, index))
     let (bandRightFixedMatrix, GR) = performRightGivensRotation(on: bandLeftFixedMatrix, atElement: (index, index + 2))
@@ -149,7 +154,6 @@ private func QREigenDecompose(_ matrix: Matrix, withPrecision precision: Double 
     let tridiagonalMatrix = matrix.transposed() * matrix
     let (Q, _) = QRDecompose(tridiagonalMatrix)
     let (bidiagonalMatrix, GL, GR) = restoreBidiagonality(to: matrix * Q)
-
     if bidiagonalMatrix.enumerated().allSatisfy({ $0.0.0 == $0.0.1 || abs($0.1) <= precision }) {
         
         return (bidiagonalMatrix, GL, Q * GR)
@@ -161,7 +165,7 @@ private func QREigenDecompose(_ matrix: Matrix, withPrecision precision: Double 
 
 public func calculateSVD(for matrix: Matrix) -> (Matrix, Matrix, Matrix) {
     let (bidiagonalMatrix, QBidiagonalL, QBidiagonalR) = reduceToBidiagonal(matrix)
-    let (B, L, R) = QREigenDecompose(bidiagonalMatrix, withPrecision: 0.3)
+    let (B, L, R) = QREigenDecompose(bidiagonalMatrix, withPrecision: 0.00001)
 
     return (
         QBidiagonalL.transposed() * L.transposed(),
