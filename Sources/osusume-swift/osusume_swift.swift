@@ -12,8 +12,9 @@ private func calculateEuclideanNorm(of vector: Matrix) -> Double {
 
 private func getHouseholderTransformationMatrix(for vector: Matrix) -> Matrix {
     let columnVector = vector.isColumn ? vector : vector.first!.map { [$0] }
+    let identity = vector.isColumn ? Matrix.makeIdentity(ofSize: vector.count) : Matrix.makeIdentity(ofSize: vector.first!.count)
     if columnVector.enumerated().allSatisfy({ $0.0.0 == 0 || abs($0.1) <= Double.ulpOfOne }) {
-        return Matrix.makeIdentity(ofSize: columnVector.count)
+        return identity
     }
     
     let e1 = Matrix.buildMatrix(from: columnVector.enumerated().map { $0.0.0 == 0 ? ($0.0, 1.0) : ($0.0, 0.0) })
@@ -22,7 +23,7 @@ private func getHouseholderTransformationMatrix(for vector: Matrix) -> Matrix {
     let transposedV = v.transposed()
     
     return (
-        Matrix.makeIdentity(ofSize: columnVector.count) - 2 * v * transposedV
+        identity - 2 * v * transposedV
     )
 }
 
@@ -47,26 +48,28 @@ private func transformColumn(_ columnIndex: Int, of matrix: Matrix) -> (Matrix, 
 private func transformRow(_ rowIndex: Int, of matrix: Matrix) -> (Matrix, Matrix) {
     let row = [matrix[rowIndex].enumerated().filter { $0.0 > rowIndex }.map { $0.1 }]
     if row.first!.count <= 1 {
-        return (matrix, Matrix.makeIdentity(ofSize: matrix.count))
+        return (matrix, Matrix.makeIdentity(ofSize: matrix.first!.count))
     }
-    let transformationMatrix = fill(getHouseholderTransformationMatrix(for: row), withSize: matrix.count)
+    let transformationMatrix = fill(getHouseholderTransformationMatrix(for: row), withSize: matrix.first!.count)
     return (matrix * transformationMatrix, transformationMatrix)
 }
 
-private func reduceToBidiagonal(_ matrix: Matrix, fromSize size: Int) -> (Matrix, Matrix, Matrix) {
-    if size == 1 {
-        let identity = Matrix.makeIdentity(ofSize: matrix.count)
-        return (matrix, identity, identity)
+private func reduceToBidiagonal(_ matrix: Matrix, fromSize size: MatrixSize) -> (Matrix, Matrix, Matrix) {
+    let (m, n) = size
+    let leftIdentity = Matrix.makeIdentity(ofSize: matrix.count)
+    let rightIdentity = Matrix.makeIdentity(ofSize: matrix.first!.count)
+    if m == 1 && n == 1 {
+        return (matrix, leftIdentity, rightIdentity)
     }
-    let (columnTransformedMatrix, columnTransformationMatrix) = transformColumn(matrix.count - size, of: matrix)
-    let (rowTransformedMatrix, rowTransformationMatrix) = transformRow(matrix.count - size, of: columnTransformedMatrix)
+    let (columnTransformedMatrix, columnTransformationMatrix) = m > 1 ? transformColumn(matrix.first!.count - n, of: matrix) : (matrix, leftIdentity)
+    let (rowTransformedMatrix, rowTransformationMatrix) = n > 1 ? transformRow(matrix.count - m, of: columnTransformedMatrix) : (matrix, rightIdentity)
 
-    let (reducedMatrix, nextColumnTransformationMatrix, nextRowTransformationMatrix) = reduceToBidiagonal(rowTransformedMatrix, fromSize: size - 1)
+    let (reducedMatrix, nextColumnTransformationMatrix, nextRowTransformationMatrix) = reduceToBidiagonal(rowTransformedMatrix, fromSize: (m == 1 ? 1 : m - 1, n == 1 ? 1 : n - 1))
     return (reducedMatrix, nextColumnTransformationMatrix * columnTransformationMatrix, rowTransformationMatrix * nextRowTransformationMatrix)
 }
 
 public func reduceToBidiagonal(_ matrix: Matrix) -> (Matrix, Matrix, Matrix) {
-    return reduceToBidiagonal(matrix, fromSize: matrix.count)
+    return reduceToBidiagonal(matrix, fromSize: (matrix.count, matrix.first!.count))
 }
 
 private func QRDecompose(_ matrix: Matrix, fromSize size: Int) -> (Matrix, Matrix) {

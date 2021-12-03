@@ -31,7 +31,7 @@ final class osusume_swiftTests: XCTestCase {
         ]
         let S1 = calculateSVD(for: m1).1
         let S2 = calculateSVD(for: m2).1
-        
+
         XCTAssertEqual(S1[0][0], 9.04838186, accuracy: 0.0001)
         XCTAssertEqual(S1[1][1], 1.768272, accuracy: 0.0001)
         XCTAssertEqual(S2[0][0], 108.42043755, accuracy: 0.0001)
